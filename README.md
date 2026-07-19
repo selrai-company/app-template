@@ -24,12 +24,14 @@ No `gh` CLI? Use the green **"Use this template"** button on GitHub instead.
 3. Push to `main`. Push = deploy — the live URL updates on every push.
 
 The home page shows green ✓ across the board when envs and Supabase are wired.
+Changed an env var in Vercel later? Redeploy (push anything, or Vercel → Redeploy)
+for it to take effect.
 
 ## Local development
 
 ```sh
 npm install
-vercel env pull .env.local   # envs live in Vercel, never in the repo
+npx vercel env pull .env.local   # envs live in Vercel, never in the repo
 npm run dev
 ```
 

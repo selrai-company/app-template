@@ -6,21 +6,25 @@ export const dynamic = "force-dynamic";
 type Check = { label: string; ok: boolean; detail: string };
 
 async function checkSupabase(url: string, anonKey: string): Promise<Check> {
+  const label = "Supabase connectivity";
+  const base = url.replace(/\/+$/, "");
   try {
-    const res = await fetch(`${url}/auth/v1/health`, {
-      headers: { apikey: anonKey },
+    new URL(base);
+  } catch {
+    return { label, ok: false, detail: "invalid URL — include https://" };
+  }
+  try {
+    // The REST root validates the anon key, so a wrong key can't show green.
+    const res = await fetch(`${base}/rest/v1/`, {
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
     return res.ok
-      ? { label: "Supabase connectivity", ok: true, detail: "connected" }
-      : {
-          label: "Supabase connectivity",
-          ok: false,
-          detail: `HTTP ${res.status}`,
-        };
+      ? { label, ok: true, detail: "connected" }
+      : { label, ok: false, detail: `HTTP ${res.status}` };
   } catch {
-    return { label: "Supabase connectivity", ok: false, detail: "unreachable" };
+    return { label, ok: false, detail: "unreachable" };
   }
 }
 
