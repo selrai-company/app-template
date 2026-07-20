@@ -14,9 +14,11 @@ async function checkSupabase(url: string, anonKey: string): Promise<Check> {
     return { label, ok: false, detail: "invalid URL — include https://" };
   }
   try {
-    // The REST root validates the anon key, so a wrong key can't show green.
-    const res = await fetch(`${base}/rest/v1/`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    // Auth health validates the API key (publishable sb_publishable_… or legacy
+    // anon JWT), so a wrong key can't show green. The REST root can't be the
+    // probe: it rejects publishable keys with "Secret API key required".
+    const res = await fetch(`${base}/auth/v1/health`, {
+      headers: { apikey: anonKey },
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
