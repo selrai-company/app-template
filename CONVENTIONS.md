@@ -1,39 +1,197 @@
-# CONVENTIONS — the one blessed path
+# CONVENTIONS.md — the one blessed path
 
-> **DRAFT** — pending Harvey's R&D deep-dive sign-off (M1 gate). Canonical copy travels inside
-> every generated app via `app-template`. Every pack skill quotes this doc.
->
-> Scope tags: **[A]** = individual-attendee-specific, **[O]** = org-compatible as-is. The
-> company-training variant must be an extension of the [O] set, not a rewrite.
+> **Locked (M1, CORE-36) — signed off by Harvey at the R&D deep-dive (2026-07-20).** This is the
+> canonical copy at the pack repo root; an identical copy ships **inside** `app-template`, so every
+> generated app carries the doctrine in its own repo. Pack skills and `deploy-doctor` quote this
+> file; nobody owns a drifting copy.
 
-## The path
+Every skill in this pack follows one path. Not "a recommended path" — the only one. The pain this
+solves is *six deploy targets and no continuous deploy*; a second blessed way recreates it inside our
+own skills. When an attendee asks for something off-path, the skill redirects here in plain English
+rather than improvising.
 
-1. **One repo per app.** [O] Every app is exactly one GitHub repository, born private under the
-   owner's own account from the `selrai-company/app-template` template.
-2. **GitHub is the source of truth.** [O] If it isn't committed and pushed, it doesn't exist.
-   No local-only apps, no drag-and-drop deploys, no second hosting target.
-3. **`main` is production.** [A] Main-only — no branches, no PRs, no preview flow in v1.
-   (Org variant may need a branch flow — that's an extension decision for the deep-dive.)
-4. **Push = deploy, for code AND schema.** [O]
-   - Code: Vercel's GitHub integration builds and ships every push to `main`.
-   - Schema: Supabase's GitHub-linked production deploy applies committed migration files in
-     `supabase/migrations/` on push to `main` (free-plan feature). Schema never changes except
-     from a committed migration.
-   - Deploys happen only via `git push` — never `vercel deploy`, never the dashboard.
-5. **The undo is Vercel's one-click rollback.** [O] It covers **code only** — data/schema
-   recovery is Claude-assisted restore from the pre-migration export (owned by app-iterate, M2).
-6. **Envs live in Vercel.** [O] Set environment variables in the Vercel project; pull them
-   locally with `vercel env pull`. No secrets in the repo — `.env*` is gitignored;
-   `.env.example` documents the required names.
-7. **One Supabase project per app.** [A] Free-tier cliffs, stated up front:
-   - **Project cap**: ~2 active free projects per org — the 3rd app, or the first app the
-     business actually uses, triggers Supabase Pro ($25/mo + usage-based compute beyond the
-     included quota — never quote it as a flat price).
-   - **Auto-pause**: free projects pause after ~1 week idle → the app breaks with opaque 500s.
-     Unpause from the Supabase dashboard; deploy-doctor (M4) detects this.
-8. **GitHub SSO chains all identity.** [A] Vercel and Supabase sign in with GitHub — one
-   account to protect instead of three. Mandatory: business email the owner controls, 2FA
-   enabled, recovery codes saved (owner names where). Claude never sees the codes.
-9. **Vercel Hobby is an evaluation tier only.** [A] Personal-audience only (family/friends —
-   no customer traffic, no links from the business site). Any app the business will actually
-   use or promote goes to Vercel Pro ($20/mo) **before** that happens.
+**Scope tags.** Paid company trainings are being sold now, so each convention below is tagged for
+whether it survives a company-training variant unchanged:
+
+| Tag | Meaning |
+|---|---|
+| **[Org-compatible]** | Holds identically for an individual attendee and a company. A v2 company variant inherits it as-is. |
+| **[Individual]** | Written for an attendee who owns their own accounts. A company variant *extends* it (org ownership, IT policy, who pays) — it does not rewrite the rule. The extension point is named in the convention. |
+
+Open company-variant questions (account ownership, who pays Pro, IT policy) remain Harvey's calls
+(deep-dive agenda #4). They are recorded, not resolved, here.
+
+---
+
+## 1. One repo per app. GitHub is the source of truth. **[Org-compatible]**
+
+Every app is exactly one GitHub repository. The repo is what exists; a working directory on a laptop
+is a cache of it. If it is not pushed, it does not exist.
+
+- Repos are created from the `selrai-company/app-template` template repo:
+  `gh repo create <owner>/<app> --template selrai-company/app-template --private --clone`.
+  The attendee's copy is born **private under their own account**. The "Use this template" button is
+  the human fallback.
+- The repo is created **before any code is scaffolded** — `app-builder` step 1 is repo + Vercel link,
+  not scaffold. This is what makes "never local-only" structural rather than a promise in prose.
+- Never a second app inside an existing app's repo. Never two Vercel projects on one repo.
+
+*Company extension:* repo owner may be a GitHub organisation instead of the attendee's personal
+account. Everything else — one repo per app, template instantiation, private by default — is unchanged.
+
+## 2. `main` is production. Main-only. **[Org-compatible]**
+
+There is one long-lived branch: `main`. No feature branches, no pull requests, no preview
+deployments in v1. Attendees commit to `main` and push.
+
+This is deliberate. Branch/PR flow is the single largest source of "I'm stuck and I don't know what
+state my code is in" for a non-technical owner. The recovery story (convention 4) is what buys the
+right to skip it.
+
+*Company extension:* a company with an existing review policy can add PR flow on top — the pack's
+rules about push-triggered deploy and committed migrations still hold on whatever branch is
+production. v1 skills assume `main`.
+
+## 3. Push = deploy — for code **and** schema. **[Org-compatible]**
+
+`git push` to `main` is the one and only deploy action.
+
+- **Code:** Vercel builds and deploys the app from the push.
+- **Schema:** Supabase's GitHub-linked deploy applies committed migrations from the repo on push to
+  `main`. This is available on the free plan.
+
+Rules that follow from this:
+
+- **Never `vercel deploy`.** A CLI deploy produces a live URL while continuous deployment was never
+  actually wired up — the check passes and the attendee is stranded the next time they change
+  something. Skills deploy by pushing, always.
+- **Never deploy from an unlinked directory.**
+- **Committed-migrations rule: the database schema never changes except from a migration file
+  committed to the repo.** No ad-hoc SQL in the Supabase dashboard, no CLI push of uncommitted
+  migrations. The repo is the schema's source of truth exactly as it is the code's.
+- **"Done" means the pushed commit auto-deployed, the live URL returns 200, and the migration
+  actually applied** — not just that a URL responds. Skills verify the migration post-push, not only
+  the HTTP status.
+
+Applied-vs-committed schema parity is a standing drift check owned by `deploy-doctor`.
+
+## 4. The undo is Vercel one-click rollback — **code only**. **[Org-compatible]**
+
+When a change breaks the live app, the recovery move is Vercel's one-click rollback to the previous
+deployment. It is instant, it needs no git knowledge, and it is what makes main-only safe.
+
+Be honest about its limit: **rollback restores code, not data.** A migration that dropped a column is
+not undone by rolling back the deployment.
+
+Data recovery is a separate, weaker guarantee:
+
+- Additive migrations (new tables, new nullable columns) apply silently.
+- **Destructive** migrations (drop, rename, type-narrowing, row deletes) require a plain-English
+  confirmation naming exactly what will be lost, plus an **automatic pre-migration export** of the
+  affected tables to SQL/CSV over a direct Postgres/API connection. No Docker — attendee laptops do
+  not get Docker Desktop.
+- The confirm and the export happen **before** the push, since the push is what applies the migration.
+- Recovery from that export is **Claude-assisted restore**, not one-click. A post-drop restore needs
+  schema surgery. Say so; do not promise an undo button for data.
+
+## 5. Environment variables live in Vercel. **[Individual]**
+
+Vercel is where env vars are defined and where production reads them. Locally, `vercel env pull`
+writes `.env.local`. `.env.local` is git-ignored and never committed — no secrets in the repo, ever.
+
+- One source, not two. Do not maintain a parallel `.env` by hand.
+- Supabase keys reach the app through Vercel's env vars; key drift between Supabase and Vercel is a
+  first-class `deploy-doctor` check.
+
+*Company extension:* a company may require a managed secrets store or restrict who can read
+production env vars. That replaces *where the values live*, not the rule that there is exactly one
+source and that secrets are never committed.
+
+## 6. One Supabase project per app — and two free-tier cliffs. **[Individual]**
+
+Each app gets its own Supabase project. Shared projects across apps make every later change a
+blast-radius question.
+
+Two free-tier limits will be hit, and both are quoted up front rather than discovered in production:
+
+**Cliff 1 — project cap.** The free tier allows roughly **two active projects per organisation**.
+One project per app therefore means the **third app** — or the first app the business actually uses —
+triggers **Supabase Pro**. Pro is **$25/mo plus usage-based compute** beyond the included quota.
+**Never quote it as a flat $25.** `app-builder` checks the project count before creating a new one and
+surfaces the upgrade decision at that moment, not after.
+
+**Cliff 2 — auto-pause.** Free projects **auto-pause after roughly one week of inactivity**. A paused
+project returns opaque 500s, and this is the single most likely post-workshop "my app broke" event.
+Consequences baked into the pack:
+
+- Pause detection is a first-class check in `deploy-doctor`'s drift library.
+- `app-status` shows a pre-emptive countdown ("your app sleeps in ~2 days").
+- Unpause guidance ships in the next-steps template and the instructor runbook.
+- A day-30 still-live sweep must use a static route / HEAD request only — a DB-touching ping resets
+  the idle timer and fakes its own evidence.
+
+**Related cost line (see `STACK.md`):** Vercel Hobby is a short, personal-audience evaluation window
+only; any app the business will use or promote moves to **Vercel Pro ($20/mo)** first. Both upgrades —
+Vercel and Supabase — are named together at the business-use gate so the owner sees the real running
+cost once.
+
+*Company extension:* projects sit under a company Supabase organisation and Pro is almost certainly
+already in play, which removes cliff 1 and (on Pro) cliff 2. One project per app is unchanged.
+
+## 7. GitHub SSO chains all identity — so the GitHub account is hardened. **[Individual]**
+
+Attendees sign in to **Vercel and Supabase with GitHub**. One account to create, one to protect,
+instead of three sets of credentials on a workshop laptop.
+
+This is an accepted single point of failure, and it is paid for with hard requirements on the GitHub
+account:
+
+1. **A business email address the owner controls** — not a colleague's, not a shared inbox.
+2. **2FA enabled**, verified via the API. Enrollment happens at home in the day-before pre-flight
+   email, not live in the room.
+3. **Recovery codes saved, and the owner states where.** Recovery codes only exist once 2FA is on,
+   which is why enrollment comes first. **Claude never sees the codes.**
+
+These are hard acceptance criteria for provisioning, not advice. Provisioning does not pass without
+all three.
+
+Related handling rules: tokens live in each official CLI's native credential store (`gh` → Windows
+Credential Manager, `supabase` → keyring, `vercel` → its auth file). Automation **detaches during
+credential entry** — a hands-off window with no DOM reads while the owner types — and the driven
+browser profile is deleted after provisioning.
+
+*Company extension:* a company may mandate SSO through its own identity provider or an enterprise
+GitHub org. The rule that survives is *one chained identity, hardened, owned by the business* — the
+2FA and recovery-code mandate becomes IT's to satisfy rather than the attendee's.
+
+## 8. The apps are born under the owner's accounts. **[Individual]**
+
+GitHub repo, Vercel project, Supabase project — all created under accounts the attendee owns, from
+the first minute. Nothing is built under a Selr account and migrated later; a later migration
+recreates exactly the "six places" pain this pack exists to remove.
+
+*Company extension:* "the owner" becomes the company (org-owned repos, team-owned Vercel/Supabase).
+The principle — the business owns its own infrastructure from day one, Selr never holds the keys —
+is what carries over.
+
+---
+
+## What is off-path
+
+Redirect, in plain English, rather than complying:
+
+| Ask | Response |
+|---|---|
+| "Deploy to Netlify / Render / Cloudflare Pages instead" | One deploy target. Redirect here. `deploy-doctor` flags foreign hosts; it never operates on them. |
+| "Keep it local for now" | Repo and Vercel link come first; local-only is the pain being solved. |
+| "Just run the SQL in the dashboard" | Committed migrations only (convention 3). |
+| "Use `vercel deploy` to push it up quickly" | Deploys happen by pushing to `main` (convention 3). |
+| "Set up a staging branch" | Main-only in v1 (convention 2). |
+
+Guardrails are enforced as trap-tests in the nightly QA autopilot: adversarial prompts must produce
+the redirect, and anti-pattern matchers fail fast on any foreign deploy command.
+
+---
+
+*Companion doc: `STACK.md` (CORE-35) — what the stack is and why, including the platforms considered
+and rejected. This file is only about how the blessed path is operated.*
