@@ -80,6 +80,19 @@ Applied-vs-committed schema parity is a standing drift check owned by `deploy-do
 When a change breaks the live app, the recovery move is Vercel's one-click rollback to the previous
 deployment. It is instant, it needs no git knowledge, and it is what makes main-only safe.
 
+**Rollback is a stopgap, not the end state.** After a rollback, Vercel switches off automatic
+production deploys: new pushes to `main` still build, but they do **not** go live until the rollback
+is undone. The follow-through is therefore always both halves — Claude pushes a fix or revert commit
+to `main`, **and** the rollback is undone (the dashboard's **Undo Rollback**, or `vercel promote`) so
+push = deploy resumes. `vercel promote` used to undo a rollback is sanctioned: it restores push =
+deploy rather than bypassing it, and the M4 anti-pattern matchers, when they are written, must exempt
+this use. Until the follow-through lands, the app sits in a named drift state — **rolled back with
+auto-deploy off** — which belongs to `deploy-doctor`'s drift library.
+
+The button also reaches exactly **one step back** on the free plan — the immediately previous
+production deployment, no further. If the last two pushes were both bad, the recovery is a
+Claude-assisted revert commit pushed to `main`, not the button.
+
 Be honest about its limit: **rollback restores code, not data.** A migration that dropped a column is
 not undone by rolling back the deployment.
 
