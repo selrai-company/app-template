@@ -21,7 +21,8 @@ Also set, under **Auth → URL Configuration**: Site URL = your live Vercel URL,
 - One change per file, named `<YYYYMMDDHHmmss>_<what_it_does>.sql` (UTC timestamp — the order
   they run in).
 - **Additive** changes (new tables, new nullable columns, new policies) just get committed and
-  pushed.
+  pushed. Anything not provably additive is treated as destructive; on a populated table an
+  index build locks writes — gate it like a destructive change.
 - **Destructive** changes (dropping/renaming anything, narrowing types, deleting rows) happen
   only after a plain-English confirmation of exactly what's lost and an automatic export of the
   affected tables — ask Claude to make the change and it follows that path. Backups land in
@@ -43,4 +44,6 @@ Auth wiring lives in the app itself: `lib/supabase/` (clients + session refresh)
 (the signed-in area). The one address that can sign in is `ownerEmail` in `app.config.ts` —
 it must be the email the owner uses for Supabase itself, because Supabase's built-in mailer
 only delivers to the project org's own members (2 emails/hour). Any other sign-in audience
-needs custom SMTP first.
+needs custom SMTP first. Before setting up custom SMTP, disable public signups (Supabase
+dashboard → Auth → "Allow new users to sign up") — the files-bucket policies admit any
+signed-in user, not just the owner.

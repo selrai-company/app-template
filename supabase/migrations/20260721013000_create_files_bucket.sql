@@ -1,7 +1,9 @@
 -- Storage pattern (builder pack, data-auth module): one private bucket
--- "files". Only signed-in users can touch it — and under owner-only auth,
--- the only signed-in user is the owner. Downloads use signed URLs; a
--- private bucket has no public links.
+-- "files". Any signed-in user can touch it — which today means the owner,
+-- because the built-in mailer only delivers sign-in links to org members.
+-- Custom SMTP removes that filter: disable public signups before enabling
+-- it, or anyone who signs up gets these policies. Downloads use signed
+-- URLs; a private bucket has no public links.
 --
 -- Note: no `alter table storage.objects ...` here — RLS is already enabled
 -- on storage tables, and migrations don't own them (the statement would

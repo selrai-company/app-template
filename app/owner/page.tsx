@@ -34,7 +34,8 @@ export default async function OwnerPage() {
         <p className="hint">
           This page is where owner-only features land when you ask for them.
           Files you upload live in the private <code>files</code> storage
-          bucket — only signed-in users (you) can read or write it.
+          bucket — readable and writable by any signed-in user, which today
+          means just you.
         </p>
         <form action={signOut}>
           <button type="submit">Sign out</button>

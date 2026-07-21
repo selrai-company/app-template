@@ -25,13 +25,14 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
   const nextParam = searchParams.get("next") ?? "/owner";
-  // Stay on this app: allow only a plain in-app path with no control chars
-  // ("//host" and "/\host" are protocol-relative escapes, and URL parsers
-  // strip \t \r \n — "/\t//host" would sneak one back in).
-  const next =
-    /^\/(?![/\\])/.test(nextParam) && !/[\x00-\x1f\x7f]/.test(nextParam)
-      ? nextParam
-      : "/owner";
+  // Stay on this app: allow only a plain in-app path of printable ASCII.
+  // "//host" and "/\host" are protocol-relative escapes; control chars can
+  // smuggle those past URL parsers (they strip \t \r \n); and anything past
+  // ASCII throws when the Location header is written — a 500 after the
+  // one-time link has already been consumed.
+  const next = /^\/(?![/\\])[\x20-\x7e]*$/.test(nextParam)
+    ? nextParam
+    : "/owner";
 
   const supabase = await createClient();
 
@@ -52,8 +53,10 @@ export async function GET(request: NextRequest) {
   // owner keeps a session. The login form already refuses other addresses,
   // but Supabase's OTP endpoint is publicly callable with the anon key —
   // and once custom SMTP is added, the built-in mailer's org-members-only
-  // filter no longer protects delivery. This check is what keeps the app
-  // owner-only in every one of those worlds.
+  // filter no longer protects delivery. This check keeps the APP owner-only,
+  // but only for sessions minted through this route — the storage policies
+  // admit any signed-in user, so setting up custom SMTP must start with
+  // disabling public signups (see supabase/README.md).
   const {
     data: { user },
   } = await supabase.auth.getUser();
