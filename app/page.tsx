@@ -33,6 +33,7 @@ async function checkSupabase(url: string, anonKey: string): Promise<Check> {
 export default async function Home() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const ownerEmail = appConfig.ownerEmail.trim();
 
   const checks: Check[] = [
     {
@@ -52,6 +53,11 @@ export default async function Home() {
           ok: false,
           detail: "skipped — envs missing",
         },
+    {
+      label: "Auth: owner email",
+      ok: Boolean(ownerEmail),
+      detail: ownerEmail ? "set" : "missing — add ownerEmail to app.config.ts",
+    },
   ];
 
   const healthy = checks.every((c) => c.ok);
@@ -77,6 +83,9 @@ export default async function Home() {
           ))}
         </ul>
       </section>
+      <p className="footer-link">
+        <a href="/login">Owner sign-in →</a>
+      </p>
     </main>
   );
 }

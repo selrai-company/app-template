@@ -15,5 +15,8 @@ next-env.d.ts
 # vercel
 .vercel
 
+# pre-migration table exports (business data — stays on the owner's machine)
+/exports/
+
 # misc
 .DS_Store
