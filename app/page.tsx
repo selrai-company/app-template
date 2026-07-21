@@ -52,6 +52,13 @@ export default async function Home() {
           ok: false,
           detail: "skipped — envs missing",
         },
+    {
+      label: "Auth: owner email",
+      ok: Boolean(appConfig.ownerEmail),
+      detail: appConfig.ownerEmail
+        ? "set"
+        : "missing — add ownerEmail to app.config.ts",
+    },
   ];
 
   const healthy = checks.every((c) => c.ok);
@@ -77,6 +84,9 @@ export default async function Home() {
           ))}
         </ul>
       </section>
+      <p className="footer-link">
+        <a href="/login">Owner sign-in →</a>
+      </p>
     </main>
   );
 }
