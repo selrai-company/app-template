@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
+import { SetupPending } from "@/app/setup-pending";
 import { isOwnerEmail } from "@/lib/owner";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/server";
 import { sendMagicLink } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,10 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  if (!hasSupabaseEnv()) {
+    return <SetupPending />;
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,7 +64,6 @@ export default async function LoginPage({
             name="email"
             required
             placeholder="you@yourbusiness.com"
-            defaultValue={appConfig.ownerEmail}
             autoComplete="email"
           />
           <button type="submit">Email me a sign-in link</button>

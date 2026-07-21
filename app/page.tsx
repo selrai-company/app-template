@@ -33,6 +33,7 @@ async function checkSupabase(url: string, anonKey: string): Promise<Check> {
 export default async function Home() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const ownerEmail = appConfig.ownerEmail.trim();
 
   const checks: Check[] = [
     {
@@ -54,10 +55,8 @@ export default async function Home() {
         },
     {
       label: "Auth: owner email",
-      ok: Boolean(appConfig.ownerEmail),
-      detail: appConfig.ownerEmail
-        ? "set"
-        : "missing — add ownerEmail to app.config.ts",
+      ok: Boolean(ownerEmail),
+      detail: ownerEmail ? "set" : "missing — add ownerEmail to app.config.ts",
     },
   ];
 

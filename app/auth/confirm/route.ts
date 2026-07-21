@@ -2,7 +2,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
 import { isOwnerEmail } from "@/lib/owner";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/server";
 
 /**
  * Magic-link landing: verifies the emailed token and starts the session.
@@ -16,14 +16,22 @@ import { createClient } from "@/lib/supabase/server";
  *   custom SMTP is set up.
  */
 export async function GET(request: NextRequest) {
+  if (!hasSupabaseEnv()) {
+    redirect("/login");
+  }
+
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
   const nextParam = searchParams.get("next") ?? "/owner";
-  // Stay on this app: allow only a plain in-app path ("//host" and "/\host"
-  // are protocol-relative escapes).
-  const next = /^\/(?![/\\])/.test(nextParam) ? nextParam : "/owner";
+  // Stay on this app: allow only a plain in-app path with no control chars
+  // ("//host" and "/\host" are protocol-relative escapes, and URL parsers
+  // strip \t \r \n — "/\t//host" would sneak one back in).
+  const next =
+    /^\/(?![/\\])/.test(nextParam) && !/[\x00-\x1f\x7f]/.test(nextParam)
+      ? nextParam
+      : "/owner";
 
   const supabase = await createClient();
 

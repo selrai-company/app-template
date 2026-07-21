@@ -1,6 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+/**
+ * True once both Supabase env vars are wired. Auth pages and actions check
+ * this before createClient(), which throws without them.
+ */
+export function hasSupabaseEnv(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}
+
 /** Supabase client for Server Components, Server Actions, and Route Handlers. */
 export async function createClient() {
   const cookieStore = await cookies();

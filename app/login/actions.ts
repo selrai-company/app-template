@@ -4,9 +4,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
 import { isOwnerEmail } from "@/lib/owner";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/server";
 
 export async function sendMagicLink(formData: FormData) {
+  if (!hasSupabaseEnv()) {
+    redirect("/login");
+  }
+
   const email = String(formData.get("email") ?? "").trim();
 
   if (!appConfig.ownerEmail.trim()) {

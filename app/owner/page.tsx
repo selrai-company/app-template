@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
+import { SetupPending } from "@/app/setup-pending";
 import { isOwnerEmail } from "@/lib/owner";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/server";
 import { signOut } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,10 @@ export const dynamic = "force-dynamic";
  * checks again — defence in depth, and correct even if the matcher drifts.
  */
 export default async function OwnerPage() {
+  if (!hasSupabaseEnv()) {
+    return <SetupPending />;
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
