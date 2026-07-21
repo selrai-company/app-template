@@ -32,8 +32,9 @@ is a cache of it. If it is not pushed, it does not exist.
   `gh repo create <owner>/<app> --template selrai-company/app-template --private --clone`.
   The attendee's copy is born **private under their own account**. The "Use this template" button is
   the human fallback.
-- The repo is created **before any code is scaffolded** — `app-builder` step 1 is repo + Vercel link,
-  not scaffold. This is what makes "never local-only" structural rather than a promise in prose.
+- The repo is created **before any code is scaffolded** — `app-builder`'s repo + Vercel-link step
+  precedes its scaffold step. This is what makes "never local-only" structural rather than a promise
+  in prose.
 - Never a second app inside an existing app's repo. Never two Vercel projects on one repo.
 
 *Company extension:* repo owner may be a GitHub organisation instead of the attendee's personal
