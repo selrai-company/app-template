@@ -1,9 +1,9 @@
 # CONVENTIONS.md — the one blessed path
 
-> **Locked (M1, CORE-36) — signed off by Harvey at the R&D deep-dive (2026-07-20).** This is the
-> canonical copy at the pack repo root; an identical copy ships **inside** `app-template`, so every
-> generated app carries the doctrine in its own repo. Pack skills and `deploy-doctor` quote this
-> file; nobody owns a drifting copy.
+> **Locked (M1, CORE-36) — signed off by Harvey at the R&D deep-dive (2026-07-20).** The canonical
+> copy of this file lives at the root of `selrai-company/full-stack-builder-pack`; an identical copy
+> ships **inside** `app-template`, so every generated app carries the doctrine in its own repo. Pack
+> skills and `deploy-doctor` quote this file; nobody owns a drifting copy.
 
 Every skill in this pack follows one path. Not "a recommended path" — the only one. The pain this
 solves is *six deploy targets and no continuous deploy*; a second blessed way recreates it inside our
@@ -15,8 +15,8 @@ whether it survives a company-training variant unchanged:
 
 | Tag | Meaning |
 |---|---|
-| **[Org-compatible]** | Holds identically for an individual attendee and a company. A v2 company variant inherits it as-is. |
-| **[Individual]** | Written for an attendee who owns their own accounts. A company variant *extends* it (org ownership, IT policy, who pays) — it does not rewrite the rule. The extension point is named in the convention. |
+| **[Org-compatible]** | The rule's *invariant* holds identically for an individual attendee and a company; a v2 company variant inherits the invariant as-is. The variant may generalize the owner from a person to an org, or layer company process on top — where it does, the convention's company extension names what changes and the invariant that carries over unchanged. |
+| **[Individual]** | Written for an attendee who owns their own accounts. A company variant *extends* it: only the extension point named in the convention may be substituted (org ownership, IT policy, who pays); the invariant carries over unchanged. |
 
 Open company-variant questions (account ownership, who pays Pro, IT policy) remain Harvey's calls
 (deep-dive agenda #4). They are recorded, not resolved, here.
@@ -66,7 +66,9 @@ Rules that follow from this:
 - **Never `vercel deploy`.** A CLI deploy produces a live URL while continuous deployment was never
   actually wired up — the check passes and the attendee is stranded the next time they change
   something. Skills deploy by pushing, always.
-- **Never deploy from an unlinked directory.**
+- **Never deploy from an unlinked directory.** A CLI deploy from a directory with no linked Vercel
+  project silently **creates a second Vercel project** for the app — a convention 1 violation on top
+  of the CLI-deploy one.
 - **Committed-migrations rule: the database schema never changes except from a migration file
   committed to the repo.** No ad-hoc SQL in the Supabase dashboard, no CLI push of uncommitted
   migrations. The repo is the schema's source of truth exactly as it is the code's.
@@ -104,6 +106,8 @@ Data recovery is a separate, weaker guarantee:
   confirmation naming exactly what will be lost, plus an **automatic pre-migration export** of the
   affected tables to SQL/CSV over a direct Postgres/API connection. No Docker — attendee laptops do
   not get Docker Desktop.
+- **The default: anything not provably additive is treated as destructive.** The two lists above are
+  examples, not a partition.
 - The confirm and the export happen **before** the push, since the push is what applies the migration.
 - Recovery from that export is **Claude-assisted restore**, not one-click. A post-drop restore needs
   schema surgery. Say so; do not promise an undo button for data.
@@ -118,8 +122,8 @@ writes `.env.local`. `.env.local` is git-ignored and never committed — no secr
   first-class `deploy-doctor` check.
 
 *Company extension:* a company may require a managed secrets store or restrict who can read
-production env vars. That replaces *where the values live*, not the rule that there is exactly one
-source and that secrets are never committed.
+production env vars. The extension point is *where the values live*; the invariant — exactly one
+source, and secrets never committed to the repo — carries over unchanged.
 
 ## 6. One Supabase project per app — and two free-tier cliffs. **[Individual]**
 
@@ -129,25 +133,31 @@ blast-radius question.
 Two free-tier limits will be hit, and both are quoted up front rather than discovered in production:
 
 **Cliff 1 — project cap.** The free tier allows roughly **two active projects per organisation**.
-One project per app therefore means the **third app** — or the first app the business actually uses —
-triggers **Supabase Pro**. Pro is **$25/mo plus usage-based compute** beyond the included quota.
-**Never quote it as a flat $25.** `app-builder` checks the project count before creating a new one and
-surfaces the upgrade decision at that moment, not after.
+One project per app therefore means the **third app** triggers **Supabase Pro** — business use
+triggers it earlier, per the business-use trigger below. Pro is **$25/mo plus usage-based compute**
+beyond the included quota. **Never quote it as a flat $25.** `app-builder` checks the project count
+before creating a new one and surfaces the upgrade decision at that moment, not after.
 
 **Cliff 2 — auto-pause.** Free projects **auto-pause after roughly one week of inactivity**. A paused
 project returns opaque 500s, and this is the single most likely post-workshop "my app broke" event.
 Consequences baked into the pack:
 
 - Pause detection is a first-class check in `deploy-doctor`'s drift library.
-- `app-status` shows a pre-emptive countdown ("your app sleeps in ~2 days").
+- `app-status` warns pre-emptively ("your app may sleep soon"). Supabase exposes pause *status*
+  through the management API but no inactivity timer, so the warning combines that status check
+  with a heuristic anchored to the last deploy (or pack-side activity tracking) — never a precise
+  countdown.
 - Unpause guidance ships in the next-steps template and the instructor runbook.
-- A day-30 still-live sweep must use a static route / HEAD request only — a DB-touching ping resets
-  the idle timer and fakes its own evidence.
+- A day-30 still-live sweep must use a static route / HEAD request plus a **management-API status
+  check** — a DB-touching ping resets the idle timer and fakes its own evidence, and the HEAD
+  request alone cannot see a paused database.
 
-**Related cost line (see `STACK.md`):** Vercel Hobby is a short, personal-audience evaluation window
-only; any app the business will use or promote moves to **Vercel Pro ($20/mo)** first. Both upgrades —
-Vercel and Supabase — are named together at the business-use gate so the owner sees the real running
-cost once.
+**The business-use trigger — stated once, here; `STACK.md` and the skills reference it rather than
+restate it.** The first app the business actually uses or promotes triggers **both** upgrades,
+unconditionally: **Vercel Pro ($20/mo)**, because Vercel Hobby is a short, personal-audience
+evaluation window only (see `STACK.md`), and **Supabase Pro**, because a business app cannot
+tolerate free-tier auto-pause (cliff 2). Both are named together at the business-use gate so the
+owner sees the real running cost once.
 
 *Company extension:* projects sit under a company Supabase organisation and Pro is almost certainly
 already in play, which removes cliff 1 and (on Pro) cliff 2. One project per app is unchanged.
@@ -161,18 +171,20 @@ This is an accepted single point of failure, and it is paid for with hard requir
 account:
 
 1. **A business email address the owner controls** — not a colleague's, not a shared inbox.
-2. **2FA enabled**, verified via the API. Enrollment happens at home in the day-before pre-flight
-   email, not live in the room.
+2. **2FA enabled**, verified via the API. Enrollment happens at home via the day-before pre-flight
+   email, not live in the room. An attendee who arrives without it — an adopted account that never
+   enrolled, or a fresh account signed up in the room — enrolls live as a **degraded fallback**:
+   the pass criteria are unchanged, only the timing slipped.
 3. **Recovery codes saved, and the owner states where.** Recovery codes only exist once 2FA is on,
    which is why enrollment comes first. **Claude never sees the codes.**
 
 These are hard acceptance criteria for provisioning, not advice. Provisioning does not pass without
 all three.
 
-Related handling rules: tokens live in each official CLI's native credential store (`gh` → Windows
-Credential Manager, `supabase` → keyring, `vercel` → its auth file). Automation **detaches during
-credential entry** — a hands-off window with no DOM reads while the owner types — and the driven
-browser profile is deleted after provisioning.
+Related handling rules: tokens live in each official CLI's native credential store (`gh` → OS
+credential store (Windows Credential Manager / macOS Keychain), `supabase` → keyring, `vercel` →
+its auth file). Automation **detaches during credential entry** — a hands-off window with no DOM
+reads while the owner types — and the driven browser profile is deleted after provisioning.
 
 *Company extension:* a company may mandate SSO through its own identity provider or an enterprise
 GitHub org. The rule that survives is *one chained identity, hardened, owned by the business* — the
@@ -201,6 +213,9 @@ Redirect, in plain English, rather than complying:
 | "Just run the SQL in the dashboard" | Committed migrations only (convention 3). |
 | "Use `vercel deploy` to push it up quickly" | Deploys happen by pushing to `main` (convention 3). |
 | "Set up a staging branch" | Main-only in v1 (convention 2). |
+| "Just put the API key in the code" / "commit the `.env`" | No secrets in the repo, ever (convention 5). |
+| "Reuse my existing Supabase project for the second app" | One Supabase project per app (convention 6). |
+| "Can Selr host it for me?" | Apps are born under the owner's accounts; Selr never holds the keys (convention 8). |
 
 Guardrails are enforced as trap-tests in the nightly QA autopilot: adversarial prompts must produce
 the redirect, and anti-pattern matchers fail fast on any foreign deploy command.
