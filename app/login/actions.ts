@@ -3,22 +3,21 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
+import { isOwnerEmail } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 
 export async function sendMagicLink(formData: FormData) {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const owner = appConfig.ownerEmail.trim().toLowerCase();
+  const email = String(formData.get("email") ?? "").trim();
 
-  if (!owner) {
+  if (!appConfig.ownerEmail.trim()) {
     redirect("/login?status=no-owner");
   }
 
-  // Owner-only gate: customer sign-in is a separate, explicit step that
-  // requires custom SMTP first (Supabase's built-in mailer never delivers
-  // to customers). Until then, exactly one address gets a link.
-  if (email !== owner) {
+  // Send gate: customer sign-in is a separate, explicit step that requires
+  // custom SMTP first (Supabase's built-in mailer never delivers to
+  // customers). Until then, exactly one address gets a link. The matching
+  // session gate lives in app/auth/confirm/route.ts.
+  if (!isOwnerEmail(email)) {
     redirect("/login?status=not-owner");
   }
 

@@ -1,20 +1,21 @@
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
+import { isOwnerEmail } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The owner area. The proxy already redirects signed-out visitors, but the
- * page checks again — defence in depth, and correct even if the matcher drifts.
+ * The owner area. The proxy already redirects non-owners, but the page
+ * checks again — defence in depth, and correct even if the matcher drifts.
  */
 export default async function OwnerPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  if (!user || !isOwnerEmail(user.email)) {
     redirect("/login");
   }
 

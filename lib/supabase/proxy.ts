@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isOwnerEmail } from "@/lib/owner";
 
 /**
  * Refreshes the auth session on every request and guards /owner.
@@ -39,7 +40,13 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith("/owner")) {
+  // /owner is for the owner alone — not merely "signed in". A non-owner
+  // session can't normally exist (the confirm route signs them out at
+  // issuance), but the gate here doesn't depend on that.
+  if (
+    request.nextUrl.pathname.startsWith("/owner") &&
+    !isOwnerEmail(user?.email)
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.search = "";

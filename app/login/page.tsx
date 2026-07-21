@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { appConfig } from "@/app.config";
+import { isOwnerEmail } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 import { sendMagicLink } from "./actions";
 
@@ -37,7 +38,9 @@ export default async function LoginPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) {
+  // Only the owner skips the form — a stray non-owner session must NOT
+  // bounce to /owner (whose guard sends it back here: a loop).
+  if (isOwnerEmail(user?.email)) {
     redirect("/owner");
   }
 

@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
+import { isOwnerEmail } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -19,19 +20,39 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
-  const nextPath = searchParams.get("next") ?? "/owner";
-  // Only ever redirect within this app.
-  const next = nextPath.startsWith("/") ? nextPath : "/owner";
+  const nextParam = searchParams.get("next") ?? "/owner";
+  // Stay on this app: allow only a plain in-app path ("//host" and "/\host"
+  // are protocol-relative escapes).
+  const next = /^\/(?![/\\])/.test(nextParam) ? nextParam : "/owner";
 
   const supabase = await createClient();
 
+  let verified = false;
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    if (!error) redirect(next);
+    verified = !error;
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) redirect(next);
+    verified = !error;
   }
 
-  redirect("/login?status=link-expired");
+  if (!verified) {
+    redirect("/login?status=link-expired");
+  }
+
+  // Session gate, not just a send gate: whoever the link was for, only the
+  // owner keeps a session. The login form already refuses other addresses,
+  // but Supabase's OTP endpoint is publicly callable with the anon key —
+  // and once custom SMTP is added, the built-in mailer's org-members-only
+  // filter no longer protects delivery. This check is what keeps the app
+  // owner-only in every one of those worlds.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!isOwnerEmail(user?.email)) {
+    await supabase.auth.signOut();
+    redirect("/login?status=not-owner");
+  }
+
+  redirect(next);
 }
